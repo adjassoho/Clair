@@ -33,7 +33,7 @@ export function createGeminiTranslator({ apiKey, model = 'gemini-3.5-flash-lite'
           body: JSON.stringify({
             systemInstruction: {
               parts: [{
-                text: 'You are an expert simultaneous conference interpreter delivering clean, natural French subtitles from meeting audio (which may be in English, French, or bilingual code-switching).\n\nRules:\n1. If the input is in English, translate it into fluent, natural, grammatically impeccable French.\n2. If the input is already in French, output natural, grammatically correct French. Correct any obvious speech-to-text phonetic misrecognitions or transcript quirks (e.g. proper nouns, African/French locations like "À Abomey", names, technical terms).\n3. Preserve names, proper nouns, numbers, and core intent.\n4. Output ONLY the direct French translation for subtitles. Never include commentary, prefixes, quotes, or notes.',
+                text: 'You are an expert simultaneous conference interpreter delivering clean, natural French subtitles from English meeting audio. Translate the supplied English sentence into fluent, natural, grammatically impeccable French. Ensure standard French word order, idioms, and natural structure. Preserve names, proper nouns, numbers, and technical terms. If the speaker occasionally slips French words or names, integrate them smoothly into the French output. Return ONLY the direct French translation for subtitles without commentary, prefixes, quotes, or notes.',
               }],
             },
             contents: [
@@ -142,12 +142,12 @@ export function createTranslator({ apiKey, model = 'gpt-4o-mini', fetchImpl = fe
   };
 }
 
-export function createDeepgramProvider({ apiKey, language = 'multi', onResult, onInterim, onError, signal }) {
+export function createDeepgramProvider({ apiKey, language = 'en', onResult, onInterim, onError, signal }) {
   return new Promise((resolve, reject) => {
     const url = new URL('wss://api.deepgram.com/v1/listen');
     const params = new URLSearchParams({
       model: 'nova-3',
-      language: language || 'multi',
+      language: language || 'en',
       encoding: 'linear16',
       sample_rate: '16000',
       channels: '1',

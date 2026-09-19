@@ -720,7 +720,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
           audio = await bounded(() => resolvedAudioProvider({
             apiKey: audioMode === 'deepgram' ? config.deepgramKey : (config.geminiKey || config.deepgramKey),
             signal: providerController.signal,
-            language: message.sourceLanguage === 'en' ? 'multi' : (message.sourceLanguage || 'multi'),
+            language: message.sourceLanguage || 'en',
             enableAudioOut: Boolean(message.enableAudioOut),
             onError: (err) => {
               console.warn('[Gateway] Erreur provider audio:', err?.message || err);
