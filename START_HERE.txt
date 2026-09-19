@@ -1,0 +1,114 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║   🚀 DÉMARRAGE RAPIDE - VERSION DEBUG AUTOMATIQUE                        ║
+║                                                                           ║
+║   Votre extension ne montre pas de transcription ?                       ║
+║   Cette version va vous dire EXACTEMENT pourquoi.                        ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 1 : Recharger l'extension                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  1. Ouvrez Chrome
+  2. Tapez dans la barre d'adresse : chrome://extensions/
+  3. Trouvez "Teams FR Companion"
+  4. Cliquez sur l'icône 🔄 (recharger)
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 2 : Ouvrir la console de debug                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  1. Sur la page chrome://extensions/
+  2. Sous votre extension, cliquez sur : "Inspect views: offscreen.html"
+  3. Une fenêtre DevTools s'ouvre
+  4. Allez dans l'onglet "Console"
+  5. LAISSEZ CETTE FENÊTRE OUVERTE à côté de Chrome
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 3 : Lancer une réunion Teams                                      │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  1. Rejoignez votre réunion Teams dans Chrome
+  2. Cliquez sur l'icône de l'extension (en haut à droite)
+  3. Cliquez sur "Démarrer" (mode "Suivre le direct")
+  4. PARLEZ ou attendez que quelqu'un parle
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 4 : Lire les logs qui apparaissent                                │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  Dans la console DevTools, vous devriez voir en temps réel :
+
+    [DEBUG] connectGateway appelé - mode: audio token: mtft-xxxxx...
+    [DEBUG] WebSocket créé, état: 0
+    [DEBUG] WebSocket ouvert, envoi message start: {...}
+    [DEBUG] Message reçu du serveur: ready {...}
+    [DEBUG] Gateway ready, résolution de la promesse
+    [DEBUG] Premier chunk audio reçu, offset: 123 taille: 3200
+    [DEBUG] Envoi audio PCM au serveur, taille: 3200
+    [DEBUG] Message reçu du serveur: segment {...}
+    [DEBUG] receiveSegment appelé avec: {...}
+    [DEBUG] Segment publié vers le panel
+
+  ✅ Si vous voyez TOUT ça → Le problème est dans l'affichage du panneau
+  ❌ Si ça s'arrête quelque part → NOTEZ À QUELLE LIGNE
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║  QUE FAIRE ENSUITE ?                                                      ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+  Lisez le fichier : DEBUG_SIMPLE.md
+
+  Il contient un diagnostic complet selon ce que vous voyez :
+
+  • Rien du tout → Extension pas démarrée
+  • WebSocket ne s'ouvre pas → Serveur pas lancé
+  • Pas de 'ready' → Serveur refuse la connexion
+  • Pas d'audio → Capture audio échouée
+  • Pas de segment → API Gemini ne répond pas
+  • Segments reçus mais invisibles → Problème d'affichage
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║  FICHIERS UTILES                                                          ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+  📄 DEBUG_SIMPLE.md ⭐ COMMENCEZ ICI
+     → Guide complet avec diagnostic pas-à-pas
+
+  📄 QUOI_DE_NEUF.md
+     → Explique ce qui a changé dans cette version
+
+  📄 RESOUDRE_PAS_DE_TRANSCRIPTION.md
+     → Solutions pour chaque type de problème
+
+  📄 LISEZMOI.txt
+     → Vue d'ensemble rapide
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║  BESOIN D'AIDE ?                                                          ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+  Si le problème persiste après avoir suivi DEBUG_SIMPLE.md,
+  donnez-moi :
+
+  1. Screenshot des logs de la console (fenêtre DevTools)
+  2. Logs du terminal où tourne le serveur (npm start)
+  3. Réponses :
+     - WebSocket ouvert ? (oui/non)
+     - Message 'ready' reçu ? (oui/non)
+     - Audio envoyé ? (oui/non)
+     - Segments reçus ? (oui/non)
+
+  Avec ces infos, diagnostic garanti en quelques secondes !
+
+═══════════════════════════════════════════════════════════════════════════
+
+  🎯 L'extension est maintenant ENTIÈREMENT instrumentée.
+  🎯 Vous allez voir EXACTEMENT où le flux s'arrête.
+  🎯 Chaque problème a sa solution documentée.
+
+  Bonne chance ! 🚀
+
+═══════════════════════════════════════════════════════════════════════════

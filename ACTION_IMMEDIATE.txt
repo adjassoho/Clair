@@ -1,0 +1,94 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║   🚨 VRAI PROBLÈME TROUVÉ : CLÉ API GEMINI INVALIDE                       ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+🔍 CE QUE J'AI DÉCOUVERT
+
+Grâce aux logs, j'ai vu que :
+
+  ✅ L'extension capture l'audio
+  ✅ Le WebSocket se connecte
+  ✅ Des centaines de chunks audio sont envoyés
+  ✅ Le serveur reçoit tout
+
+  ❌ MAIS Gemini refuse la connexion avec l'erreur 1008
+
+
+🎯 LA CAUSE
+
+Votre clé API Gemini est invalide :
+  GEMINI_API_KEY=VOTRE_CLE_GEMINI_ICI
+
+Test API : "API key not valid. Please pass a valid API key."
+
+Les vraies clés Gemini commencent par "AIza...", pas "AQ."
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+🚀 LA SOLUTION (3 MINUTES)
+
+1️⃣  OBTENIR UNE VRAIE CLÉ
+
+    → Allez sur : https://aistudio.google.com/apikey
+    → Connectez-vous avec Google
+    → Cliquez "Create API Key"
+    → Copiez la clé (commence par "AIza...")
+
+
+2️⃣  REMPLACER DANS .env
+
+    → Ouvrez : /home/ff/Public/MTT/.env
+    → Ligne : GEMINI_API_KEY=VOTRE_CLE_ICI
+    → Collez votre vraie clé
+    → Sauvegardez
+
+
+3️⃣  REDÉMARRER LE SERVEUR
+
+    → Terminal : Ctrl+C
+    → Relancez : npm start
+    → Vous devriez voir "Language gateway listening..."
+    → SANS voir "Socket closed (1008)"
+
+
+4️⃣  TESTER
+
+    → Rejoignez Teams
+    → Démarrez l'extension
+    → Parlez ANGLAIS (sourceLanguage: "en")
+    → La transcription devrait apparaître ! 🎉
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+⚠️  RAPPEL : LANGUE SOURCE
+
+Votre extension écoute l'ANGLAIS. Si vous parlez français :
+
+  → extension/offscreen.js
+  → sourceLanguage: "en"  →  sourceLanguage: "fr"
+  → npm run build
+  → Recharger l'extension
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+📖 DOCUMENTATION
+
+  ⭐ CLE_API_INVALIDE.txt  →  Instructions détaillées
+  📄 PROBLEME_RESOLU.md    →  Contexte complet (ancien problème)
+  📄 DEBUG_SIMPLE.md       →  Guide de debug général
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+  🎯 RÉSUMÉ :
+
+  Clé API invalide → Obtenez une vraie clé sur aistudio.google.com
+  → Mettez-la dans .env → Redémarrez → Ça marche ! 🚀
+
+═══════════════════════════════════════════════════════════════════════════

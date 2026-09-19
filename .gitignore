@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env*.local
+test-results/
+playwright-report/
+*.zip
+*.webm
+*.mp4
+*.srt
+*.log
+.~lock*
+.DS_Store

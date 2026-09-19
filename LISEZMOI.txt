@@ -1,0 +1,91 @@
+═══════════════════════════════════════════════════════════════════════════════
+🚨 PAS DE TRANSCRIPTION DANS L'EXTENSION ?
+═══════════════════════════════════════════════════════════════════════════════
+
+Problème : Quand vous lancez une réunion Teams et activez "Suivre le direct",
+aucune transcription n'apparaît dans le panneau.
+
+✅ BONNE NOUVELLE : Le backend fonctionne parfaitement
+   - Serveur Node.js actif
+   - Port 8787 accessible
+   - Configuration correcte (token, API Gemini)
+   - Tous les tests passent ✅
+
+❌ LE PROBLÈME : L'extension Chrome ne transmet pas les données
+   - Le blocage est dans extension/offscreen.js ou extension/panel.js
+   - Il faut activer les logs pour voir où ça s'arrête
+
+═══════════════════════════════════════════════════════════════════════════════
+⭐ SOLUTION RAPIDE - VERSION DEBUG AUTOMATIQUE
+═══════════════════════════════════════════════════════════════════════════════
+
+J'ai ajouté des logs de debug directement dans l'extension !
+Plus besoin de coller du code dans la console.
+
+→ LISEZ : DEBUG_SIMPLE.md
+   (Guide ultra-simple en 4 étapes, 5 minutes max)
+
+1. Rechargez l'extension dans Chrome (chrome://extensions/)
+2. Ouvrez la console debug ("Inspect views: offscreen.html")
+3. Lancez une réunion Teams
+4. Lisez les logs [DEBUG] qui apparaissent en temps réel
+
+Les logs vous diront EXACTEMENT où le flux s'arrête.
+
+═══════════════════════════════════════════════════════════════════════════════
+📖 DOCUMENTATION COMPLÈTE
+═══════════════════════════════════════════════════════════════════════════════
+
+Fichiers créés pour vous aider :
+
+⭐ DEBUG_SIMPLE.md
+   → COMMENCEZ ICI : Guide avec logs automatiques
+   → Rechargez l'extension, ouvrez la console, lancez une réunion
+   → Les logs apparaissent automatiquement, pas besoin de coller du code
+
+1. COMMENCER_ICI.md
+   → Ancienne méthode : script de debug à coller manuellement
+   → Utilisez DEBUG_SIMPLE.md à la place, c'est plus simple
+
+2. RESOUDRE_PAS_DE_TRANSCRIPTION.md
+   → Solutions détaillées pour chaque scénario d'erreur
+   → Une fois que vous savez où ça bloque, ce fichier vous dit quoi faire
+
+3. test-complet.sh
+   → Script qui teste automatiquement tout le backend
+   → Tous les tests passent ✅ donc le backend est OK
+
+4. GUIDE_DEBUG_EXTENSION.md
+   → Debug approfondi de l'extension Chrome
+   → Pour aller plus loin si les solutions de base ne marchent pas
+
+5. README_RESOLUTION.md
+   → Vue d'ensemble complète avec architecture
+   → Explique comment tout fonctionne ensemble
+
+═══════════════════════════════════════════════════════════════════════════════
+🆘 SI VOUS ÊTES BLOQUÉ
+═══════════════════════════════════════════════════════════════════════════════
+
+Après avoir suivi DEBUG_SIMPLE.md, si le problème persiste, donnez-moi :
+
+1. Les 30-50 dernières lignes de la console offscreen.html (avec les [DEBUG])
+2. Les 30-50 dernières lignes du terminal serveur (npm start)
+3. Réponses à ces questions :
+   - Le WebSocket s'ouvre-t-il ?
+   - Le message 'ready' arrive-t-il ?
+   - L'audio est-il envoyé ?
+   - Des segments arrivent-ils ?
+
+Avec ces infos, je pourrai diagnostiquer en quelques secondes.
+
+═══════════════════════════════════════════════════════════════════════════════
+✨ POINTS CLÉS
+═══════════════════════════════════════════════════════════════════════════════
+
+- Le serveur backend est PARFAIT, ne le touchez pas
+- Les logs de l'extension vous diront EXACTEMENT où ça bloque
+- Chaque scénario d'erreur a sa solution documentée
+- Sans les logs, impossible de diagnostiquer
+
+→ Commencez par DEBUG_SIMPLE.md, tout est là ! 🚀

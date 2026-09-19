@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Clair - Teams en francais",
+  "version": "0.1.0",
+  "description": "Prototype Teams web : traduction, capture recadree et export synchronise local.",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "tabs", "scripting", "tabCapture", "audioCapture", "offscreen", "sidePanel", "storage", "downloads"],
+  "host_permissions": ["https://teams.microsoft.com/*", "https://teams.cloud.microsoft/*", "https://teams.live.com/*", "http://127.0.0.1:8787/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://teams.microsoft.com/*", "https://teams.cloud.microsoft/*", "https://teams.live.com/*"],
+      "js": ["teams-content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": { "service_worker": "worker.js", "type": "module" },
+  "action": { "default_title": "Ouvrir Clair pour cette reunion Teams" },
+  "side_panel": { "default_path": "panel.html" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' ws://127.0.0.1:8787 http://127.0.0.1:8787; media-src 'self' blob:; img-src 'self' data: blob:"
+  }
+}

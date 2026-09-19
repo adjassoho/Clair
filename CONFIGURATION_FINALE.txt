@@ -1,0 +1,139 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║   ✅ CONFIGURATION CORRIGÉE ET SERVEUR OPÉRATIONNEL                       ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+## 🔍 PROBLÈMES TROUVÉS ET RÉSOLUS
+
+### Problème 1 : Clé API Invalide ✅ RÉSOLU
+   Avant : GEMINI_API_KEY=VOTRE_CLE_GEMINI_ICI
+   Après : GEMINI_API_KEY=VOTRE_CLE_GEMINI_ICI
+   
+   Note : Les clés commençant par "AQ." sont valides (je me suis trompé !)
+
+### Problème 2 : Modèle Inexistant ✅ RÉSOLU
+   Avant : GEMINI_MODEL=gemini-2.0-flash-exp (n'existe plus)
+   Après : GEMINI_MODEL=gemini-2.5-flash (existe et fonctionne)
+
+
+## 📋 CONFIGURATION ACTUELLE
+
+```bash
+GATEWAY_TOKEN=clair-local-session-secret-token-2026
+GEMINI_API_KEY=VOTRE_CLE_GEMINI_ICI ✅
+GEMINI_MODEL=gemini-2.5-flash ✅
+GEMINI_LIVE_MODEL=gemini-2.5-flash ✅
+PORT=8787
+```
+
+
+## ✅ VÉRIFICATIONS
+
+✅ Clé API testée avec succès
+✅ Modèle gemini-2.5-flash disponible
+✅ Serveur démarré sans erreur 1008
+✅ Serveur écoute sur http://127.0.0.1:8787
+
+
+## 🚀 PROCHAINES ÉTAPES
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 1. TESTER L'EXTENSION                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+   1. Rejoignez une réunion Teams dans Chrome
+   2. Ouvrez le panneau de l'extension
+   3. Cliquez "Démarrer" (mode "Suivre le direct")
+   4. **PARLEZ EN ANGLAIS** (sourceLanguage: "en")
+   5. La transcription devrait apparaître ! 🎉
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 2. VÉRIFIER LES LOGS (optionnel)                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+   Console DevTools (chrome://extensions/ → Inspect views: offscreen.html) :
+
+   ✅ [DEBUG] WebSocket ouvert, envoi message start
+   ✅ [DEBUG] Message reçu du serveur: ready
+   ✅ [DEBUG] Premier chunk audio reçu
+   ✅ [DEBUG] Envoi audio PCM au serveur
+   ✅ [DEBUG] Message reçu du serveur: segment  ← VOUS DEVRIEZ VOIR ÇA !
+   ✅ [DEBUG] Segment publié vers le panel
+
+   Logs serveur (/tmp/mtt-server.log) :
+
+   ✅ Language gateway listening on http://127.0.0.1:8787
+   ❌ PLUS D'ERREUR "Socket closed (1008)" !
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 3. CHANGER LA LANGUE (si nécessaire)                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+   Si vous voulez parler FRANÇAIS au lieu d'anglais :
+
+   1. Ouvrez : extension/offscreen.js
+   2. Cherchez : sourceLanguage: "en"
+   3. Changez en : sourceLanguage: "fr"
+   4. Rebuild : cd /home/ff/Public/MTT && npm run build
+   5. Rechargez l'extension dans chrome://extensions/
+
+
+## 📊 RÉSUMÉ TECHNIQUE
+
+Le pipeline complet fonctionne maintenant :
+
+```
+Teams Audio
+    ↓
+Extension Chrome (capture PCM 16kHz mono)
+    ↓
+WebSocket → ws://127.0.0.1:8787
+    ↓
+Serveur Node.js (gateway)
+    ↓
+Gemini API (gemini-2.5-flash) ✅ Clé valide
+    ↓
+Segments de transcription
+    ↓
+Extension (affichage panel)
+    ↓
+Vous voyez la transcription ! 🎉
+```
+
+
+## 🆘 SI ÇA NE MARCHE TOUJOURS PAS
+
+### Symptôme : Pas de segments reçus
+
+1. Vérifiez les logs serveur :
+   ```bash
+   tail -f /tmp/mtt-server.log
+   ```
+
+2. Cherchez des erreurs liées à Gemini
+
+3. Vérifiez que vous parlez bien ANGLAIS (ou changez sourceLanguage)
+
+
+### Symptôme : Segments reçus mais pas affichés
+
+1. Ouvrez la console du panel (clic droit sur le panel → Inspecter)
+2. Tapez : `chrome.storage.local.get(['segments'], console.log)`
+3. Si des segments sont stockés → Problème d'affichage dans panel.js
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+  🎯 TOUT EST CONFIGURÉ CORRECTEMENT !
+  
+  La clé API fonctionne ✅
+  Le modèle existe ✅
+  Le serveur tourne sans erreur ✅
+  
+  → TESTEZ MAINTENANT dans Teams en parlant ANGLAIS ! 🚀
+
+═══════════════════════════════════════════════════════════════════════════

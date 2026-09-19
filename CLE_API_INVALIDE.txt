@@ -1,0 +1,115 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║   🚨 PROBLÈME TROUVÉ : CLÉ API GEMINI INVALIDE                            ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+## 🔍 LE DIAGNOSTIC
+
+Vos logs montraient :
+
+  [Gemini Live] Socket closed (1008), auto-resuming session...
+
+Code 1008 = Policy Violation = Clé API refusée
+
+Test de votre clé actuelle :
+  GEMINI_API_KEY=VOTRE_CLE_GEMINI_ICI
+  
+  Résultat : "API key not valid. Please pass a valid API key."
+
+
+## ✅ LA SOLUTION (3 MINUTES)
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 1 : Obtenir une vraie clé API Gemini                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  1. Ouvrez votre navigateur
+  2. Allez sur : https://aistudio.google.com/apikey
+  3. Connectez-vous avec votre compte Google
+  4. Cliquez sur "Create API Key" (ou "Get API Key")
+  5. Copiez la clé qui apparaît (elle commence par "AIza...")
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 2 : Remplacer la clé dans .env                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  1. Ouvrez le fichier : /home/ff/Public/MTT/.env
+  2. Trouvez la ligne : GEMINI_API_KEY=VOTRE_CLE_ICI
+  3. Remplacez "VOTRE_CLE_ICI" par votre vraie clé
+  4. Sauvegardez
+
+  Exemple :
+    GEMINI_API_KEY=AIzaSyC_VotreCléIci_32CaractèresEnviron
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 3 : Redémarrer le serveur                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  Dans le terminal où tourne le serveur :
+
+  1. Appuyez sur Ctrl+C pour arrêter
+  2. Relancez : npm start
+  3. Vous devriez voir : "Language gateway listening on http://127.0.0.1:8787"
+  4. SANS voir : "[Gemini Live] Socket closed (1008)"
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ÉTAPE 4 : Tester à nouveau                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  1. Rejoignez une réunion Teams
+  2. Ouvrez le panneau de l'extension
+  3. Cliquez "Démarrer"
+  4. Parlez en ANGLAIS (sourceLanguage: "en")
+  5. La transcription devrait apparaître ! 🎉
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+## 📊 RÉSUMÉ TECHNIQUE
+
+Avant :
+  Extension → Audio → Serveur → Gemini (clé invalide ❌) → 1008 Error
+
+Après :
+  Extension → Audio → Serveur → Gemini (clé valide ✅) → Transcription ✅
+
+
+## ⚠️ RAPPEL : LANGUE SOURCE
+
+Votre extension est configurée pour ANGLAIS → FRANÇAIS.
+
+Si vous parlez français, modifiez :
+  extension/offscreen.js
+  sourceLanguage: "en"  →  sourceLanguage: "fr"
+
+Puis : npm run build + recharger l'extension
+
+
+## 🆘 SI ÇA NE MARCHE TOUJOURS PAS
+
+Après avoir mis une vraie clé API :
+
+1. Vérifiez que la clé commence bien par "AIza"
+2. Vérifiez qu'il n'y a pas d'espaces avant/après
+3. Testez la clé manuellement :
+
+   curl "https://generativelanguage.googleapis.com/v1beta/models?key=VOTRE_CLE"
+
+   Si ça retourne une liste de modèles → Clé OK
+   Si ça retourne une erreur → Clé invalide
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+  🎯 LE PROBLÈME ÉTAIT SIMPLE : Une clé API invalide
+  🎯 LA SOLUTION EST SIMPLE : Obtenez une vraie clé sur aistudio.google.com
+  🎯 TEMPS ESTIMÉ : 3 minutes
+
+  Allez-y ! 🚀
+
+═══════════════════════════════════════════════════════════════════════════

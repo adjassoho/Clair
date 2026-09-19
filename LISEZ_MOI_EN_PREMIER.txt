@@ -1,0 +1,73 @@
+
+ ██████╗ ██╗     ███████╗     █████╗ ██████╗ ██╗    ██╗███╗   ██╗██╗   ██╗ █████╗ ██╗     ██╗██████╗ ███████╗
+██╔════╝ ██║     ██╔════╝    ██╔══██╗██╔══██╗██║    ██║████╗  ██║██║   ██║██╔══██╗██║     ██║██╔══██╗██╔════╝
+██║      ██║     █████╗      ███████║██████╔╝██║    ██║██╔██╗ ██║██║   ██║███████║██║     ██║██║  ██║█████╗  
+██║      ██║     ██╔══╝      ██╔══██║██╔═══╝ ██║    ██║██║╚██╗██║╚██╗ ██╔╝██╔══██║██║     ██║██║  ██║██╔══╝  
+╚██████╗ ███████╗███████╗    ██║  ██║██║     ██║    ██║██║ ╚████║ ╚████╔╝ ██║  ██║███████╗██║██████╔╝███████╗
+ ╚═════╝ ╚══════╝╚══════╝    ╚═╝  ╚═╝╚═╝     ╚═╝    ╚═╝╚═╝  ╚═══╝  ╚═══╝  ╚═╝  ╚═╝╚══════╝╚═╝╚═════╝ ╚══════╝
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║   Votre clé API Gemini est INVALIDE                                       ║
+║   C'est pour ça qu'il n'y a pas de transcription                          ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+🔍 DIAGNOSTIC
+
+   Erreur dans les logs serveur :
+   → [Gemini Live] Socket closed (1008), auto-resuming session...
+
+   Votre clé actuelle :
+   → GEMINI_API_KEY=VOTRE_CLE_GEMINI_ICI
+
+   Test de la clé :
+   → "API key not valid. Please pass a valid API key."
+
+   Les vraies clés Gemini commencent par "AIza..."
+
+
+✅ SOLUTION RAPIDE (3 minutes)
+
+   1. Allez sur https://aistudio.google.com/apikey
+   2. Créez une clé API (bouton "Create API Key")
+   3. Copiez-la (commence par "AIza...")
+   4. Ouvrez .env et remplacez GEMINI_API_KEY=VOTRE_CLE_ICI
+   5. Redémarrez le serveur (Ctrl+C puis npm start)
+   6. Testez dans Teams en parlant ANGLAIS
+
+
+📖 DOCUMENTATION DÉTAILLÉE
+
+   ⭐ CLE_API_INVALIDE.txt
+      → Instructions pas-à-pas avec captures
+
+   ⭐ ACTION_IMMEDIATE.txt
+      → Résumé visuel du problème et solution
+
+   📄 PROBLEME_RESOLU.md
+      → Contexte complet de l'investigation
+
+
+⚠️  IMPORTANT
+
+   Après avoir mis votre vraie clé, si vous parlez FRANÇAIS :
+
+   → Modifiez extension/offscreen.js
+   → Changez sourceLanguage: "en" en sourceLanguage: "fr"
+   → npm run build
+   → Rechargez l'extension
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+  Le problème est simple : une clé API invalide
+  La solution est simple : obtenez une vraie clé
+  Temps estimé : 3 minutes
+
+  👉 COMMENCEZ PAR : CLE_API_INVALIDE.txt
+
+═══════════════════════════════════════════════════════════════════════════
+
