@@ -701,7 +701,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
         return;
       }
       const rawOffset = message.audioOffsetMs !== undefined ? Number(message.audioOffsetMs) : 0;
-      if (!['captions', 'audio'].includes(message.mode) || message.sourceLanguage !== 'en'
+      if (!['captions', 'audio'].includes(message.mode) || !['en', 'multi', 'fr'].includes(message.sourceLanguage)
         || message.targetLanguage !== 'fr' || !validTime(rawOffset)) {
         fatal('INVALID_START', 'Expected audio or captions mode and en to fr languages.');
         return;
@@ -720,7 +720,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
           audio = await bounded(() => resolvedAudioProvider({
             apiKey: audioMode === 'deepgram' ? config.deepgramKey : (config.geminiKey || config.deepgramKey),
             signal: providerController.signal,
-            language: message.sourceLanguage || 'en',
+            language: message.sourceLanguage === 'en' ? 'multi' : (message.sourceLanguage || 'multi'),
             enableAudioOut: Boolean(message.enableAudioOut),
             onError: (err) => {
               console.warn('[Gateway] Erreur provider audio:', err?.message || err);
@@ -769,8 +769,15 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
                 const cleanText = sourceText.trim();
                 if (!cleanText) return;
 
+                const danglingConnectorRegex = /\b(and|or|so|if|that|which|who|whom|whose|because|but|to|for|with|as|at|by|from|in|into|of|on|off|out|over|under|until|up|while|although|though|we|i|you|he|she|they|it|the|a|an|is|are|was|were|be|been|have|has|had|do|does|did|will|would|can|could|should|my|your|his|her|its|our|their|et|ou|donc|or|ni|car|mais|si|que|qui|quoi|dont|où|qu'|parce|puisque|comme|pour|avec|sans|sous|sur|dans|de|du|des|d'|en|au|aux|à|par|vers|chez|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|je|j'|tu|il|elle|on|nous|vous|ils|elles|ce|cet|cette|ces|le|la|les|un|une|est|suis|es|sommes|êtes|sont|été|ai|as|a|avons|avez|ont|nom)\s*[.,?!]*$/i;
+
                 if (pendingSentence && pendingSentence.speakerIndex !== speakerIndex) {
-                  flushCurrentSentence();
+                  const currentPendingText = joinSentenceFragments(pendingSentence.fragments);
+                  const pendingWords = currentPendingText.split(/\s+/).filter(Boolean).length;
+                  const isPendingDangling = danglingConnectorRegex.test(currentPendingText) || pendingWords < 4;
+                  if (!isPendingDangling) {
+                    flushCurrentSentence();
+                  }
                 }
 
                 if (!pendingSentence) {
@@ -789,7 +796,6 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
                 const fullText = joinSentenceFragments(pendingSentence.fragments);
                 const wordCount = fullText.split(/\s+/).filter(Boolean).length;
 
-                const danglingConnectorRegex = /\b(and|or|so|if|that|which|who|whom|whose|because|but|to|for|with|as|at|by|from|in|into|of|on|off|out|over|under|until|up|while|although|though|we|i|you|he|she|they|it|the|a|an|is|are|was|were|be|been|have|has|had|do|does|did|will|would|can|could|should)\s*[.,?!]*$/i;
                 const isDangling = danglingConnectorRegex.test(cleanText) || danglingConnectorRegex.test(fullText);
 
                 const hasTerminalPunct = wordCount >= 5 && /[.?!]$/.test(cleanText) && !isDangling;
@@ -803,7 +809,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
                     session.send({ type: 'interim', text: fullText });
                   }
                   if (sentenceFlushTimer) clearTimeout(sentenceFlushTimer);
-                  const silenceDelay = isDangling ? 2600 : 1800;
+                  const silenceDelay = isDangling ? 3200 : (wordCount < 4 ? 2800 : 1800);
                   sentenceFlushTimer = setTimeout(() => {
                     flushCurrentSentence();
                   }, silenceDelay);

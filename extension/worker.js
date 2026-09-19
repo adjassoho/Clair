@@ -3,6 +3,7 @@ if (chrome.storage?.session?.setAccessLevel) {
 }
 
 const teamsHosts = new Set(['teams.microsoft.com', 'teams.cloud.microsoft', 'teams.live.com']);
+const knownTeamsTabIds = new Set();
 let opening;
 const downloadUrls = new Map();
 function isTeams(url) {
@@ -181,11 +182,14 @@ async function command(message) {
     case 'set-discrete-mode': {
       await chrome.storage.session.set({ discreteMode: Boolean(message.enabled) });
       const { activeTabId, targetTabId } = await chrome.storage.session.get(['activeTabId', 'targetTabId']);
-      const targetTabs = new Set([activeTabId, targetTabId].filter(Boolean));
+      const targetTabs = new Set([activeTabId, targetTabId, ...knownTeamsTabIds].filter(Boolean));
       try {
         const tabs = await chrome.tabs.query({});
         for (const t of tabs) {
-          if (t.id && isTeams(t.url)) targetTabs.add(t.id);
+          if (t.id && isTeams(t.url)) {
+            targetTabs.add(t.id);
+            knownTeamsTabIds.add(t.id);
+          }
         }
       } catch {}
       for (const tid of targetTabs) {
@@ -201,16 +205,19 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     (async () => {
       try {
         const { activeTabId, targetTabId } = await chrome.storage.session.get(['activeTabId', 'targetTabId']);
-        const targetTabs = new Set([activeTabId, targetTabId].filter(Boolean));
+        const targetTabs = new Set([activeTabId, targetTabId, ...knownTeamsTabIds].filter(Boolean));
         try {
           const tabs = await chrome.tabs.query({});
           for (const t of tabs) {
-            if (t.id && isTeams(t.url)) targetTabs.add(t.id);
+            if (t.id && isTeams(t.url)) {
+              targetTabs.add(t.id);
+              knownTeamsTabIds.add(t.id);
+            }
           }
         } catch {}
         if (message.type === 'segment' || message.type === 'interim') {
           for (const tid of targetTabs) {
-            chrome.tabs.sendMessage(tid, { target: 'teams', type: message.type, ...message }).catch(() => {});
+            chrome.tabs.sendMessage(tid, { ...message, target: 'teams' }).catch(() => {});
           }
         }
       } catch {}
@@ -228,6 +235,8 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     }
     // Sinon, si la requête provient d'un onglet Teams (content-script)
     if (sender.tab) {
+      if (sender.tab.id) knownTeamsTabIds.add(sender.tab.id);
+      if (message.type === 'register-teams-tab') return { ok: true };
       if (message.type === 'reopen-panel') {
         await chrome.storage.session.set({ discreteMode: false });
         if (sender.tab.id) {
@@ -256,6 +265,7 @@ chrome.downloads.onChanged.addListener(delta => {
   if (url) { downloadUrls.delete(delta.id); media('revoke', { url }).catch(() => {}); }
 });
 chrome.tabs.onRemoved.addListener(async tabId => {
+  knownTeamsTabIds.delete(tabId);
   const { activeTabId } = await chrome.storage.session.get('activeTabId');
   if (activeTabId === tabId) {
     await media('invalidate', { reason: 'Onglet Teams ferme.' }).catch(() => {});

@@ -5,8 +5,19 @@
  */
 
 (() => {
-  if (window.__clair_teams_adapter_initialized) return;
+  // Détection d'invalidation de contexte d'extension (après rechargement)
+  if (window.__clair_teams_adapter_initialized) {
+    try {
+      if (window.__clair_extension_id === chrome.runtime?.id && chrome.runtime?.id) {
+        return;
+      }
+    } catch {}
+    // Ancien script orphelin ou extension rechargée : nettoyer les anciens nœuds DOM
+    document.getElementById('clair-subtitles-host')?.remove();
+    document.getElementById('clair-selector-host')?.remove();
+  }
   window.__clair_teams_adapter_initialized = true;
+  window.__clair_extension_id = chrome.runtime?.id || '';
 
   let sessionOrigin = 0;
   let sessionMode = null;
@@ -17,6 +28,7 @@
   let lastContentDimensions = null;
   let statusCheckTimer = null;
   let isCustomCropActive = false;
+  let lastSegmentReceived = null;
 
   const epoch = () => performance.timeOrigin + performance.now();
   const sessionNow = () => Math.max(0, Math.round(epoch() - sessionOrigin));
@@ -29,6 +41,9 @@
       return Promise.resolve();
     }
   }
+
+  // Notifier immédiatement le worker que cet onglet Teams est actif et prêt
+  notifyWorker('register-teams-tab');
 
   // ---- F-06 : SÉLECTION DE ZONE RECTANGULAIRE AU CURSEUR ----
 
@@ -725,11 +740,17 @@
 
     subtitleSpeaker = document.createElement('div');
     subtitleSpeaker.className = 'clair-speaker';
-    subtitleSpeaker.style.display = 'none';
+    if (lastSegmentReceived?.speakerName) {
+      subtitleSpeaker.textContent = lastSegmentReceived.speakerName;
+      subtitleSpeaker.style.display = 'block';
+    } else {
+      subtitleSpeaker.style.display = 'none';
+    }
 
     subtitleText = document.createElement('div');
     subtitleText.className = 'clair-text';
-    subtitleText.textContent = 'Mode discret actif. La traduction apparaîtra ici en temps réel.';
+    const initialText = (lastSegmentReceived?.translatedText || lastSegmentReceived?.sourceText || '').trim();
+    subtitleText.textContent = initialText || 'Mode discret actif. La traduction apparaîtra ici en temps réel.';
 
     subtitleInterim = document.createElement('div');
     subtitleInterim.className = 'clair-interim';
@@ -782,6 +803,7 @@
   }
 
   function displaySubtitleSegment(segment) {
+    lastSegmentReceived = segment;
     if (!isDiscreteActive) {
       try {
         if (globalThis.chrome?.storage?.session) {
@@ -868,6 +890,9 @@
     if (isDiscreteActive) {
       ensureSubtitleOverlay();
       subtitleContainer?.classList.remove('hidden');
+      if (lastSegmentReceived) {
+        displaySubtitleSegment(lastSegmentReceived);
+      }
     } else if (subtitleContainer) {
       subtitleContainer.classList.add('hidden');
     }
@@ -911,7 +936,7 @@
   // ---- ROUTAGE DES MESSAGES PROVENANT DU WORKER ----
 
   chrome.runtime.onMessage.addListener((message, sender, reply) => {
-    if (message?.target !== 'teams') return;
+    if (message?.target !== 'teams' && message?.target !== 'worker-relay') return;
 
     switch (message.type) {
       case 'observe':

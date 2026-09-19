@@ -33,7 +33,7 @@ export function createGeminiTranslator({ apiKey, model = 'gemini-3.5-flash-lite'
           body: JSON.stringify({
             systemInstruction: {
               parts: [{
-                text: 'You are an expert simultaneous conference interpreter translating English speech to French. Translate the supplied English sentence into fluent, natural, grammatically impeccable French. Ensure standard French word order, idioms, and natural structure. Use the conversation context to resolve pronouns, technical terms, and speech-to-text acoustic misrecognitions. Return ONLY the direct French translation without commentary, quotes, notes, or explanations.',
+                text: 'You are an expert simultaneous conference interpreter delivering clean, natural French subtitles from meeting audio (which may be in English, French, or bilingual code-switching).\n\nRules:\n1. If the input is in English, translate it into fluent, natural, grammatically impeccable French.\n2. If the input is already in French, output natural, grammatically correct French. Correct any obvious speech-to-text phonetic misrecognitions or transcript quirks (e.g. proper nouns, African/French locations like "À Abomey", names, technical terms).\n3. Preserve names, proper nouns, numbers, and core intent.\n4. Output ONLY the direct French translation for subtitles. Never include commentary, prefixes, quotes, or notes.',
               }],
             },
             contents: [
@@ -142,22 +142,27 @@ export function createTranslator({ apiKey, model = 'gpt-4o-mini', fetchImpl = fe
   };
 }
 
-export function createDeepgramProvider({ apiKey, language = 'en', onResult, onInterim, onError, signal }) {
+export function createDeepgramProvider({ apiKey, language = 'multi', onResult, onInterim, onError, signal }) {
   return new Promise((resolve, reject) => {
     const url = new URL('wss://api.deepgram.com/v1/listen');
-    url.search = new URLSearchParams({
+    const params = new URLSearchParams({
       model: 'nova-3',
-      language: 'en',
+      language: language || 'multi',
       encoding: 'linear16',
       sample_rate: '16000',
       channels: '1',
       interim_results: 'true',
       utterance_end_ms: '2500',
-      endpointing: '1000',
+      endpointing: '1200',
       punctuate: 'true',
       smart_format: 'true',
       diarize: 'true',
-    }).toString();
+    });
+    const keyterms = ['Abomey', 'Bénin', 'Cotonou', 'Afrique', 'Clair', 'Teams'];
+    for (const term of keyterms) {
+      params.append('keyterm', term);
+    }
+    url.search = params.toString();
     const socket = new WebSocket(url, {
       headers: { Authorization: `Token ${apiKey}` },
       maxPayload: 4 * 1024 * 1024,
