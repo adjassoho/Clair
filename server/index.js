@@ -12,10 +12,10 @@ import { generateDetailedSynthesis } from './synthesis.js';
 
 const DEFAULT_LIMITS = {
   maxConnections: 8, maxPayload: 4 * 1024 * 1024, maxTextLength: 8000,
-  maxQueuedRequests: 64, maxQueuedText: 512 * 1024, maxSessionRequests: 64,
-  maxSessionText: 10_000_000, translationConcurrency: 1,
-  translationTimeoutMs: 45_000, authTimeoutMs: 10_000, audioConnectTimeoutMs: 20_000,
-  finishTimeoutMs: 5000, closeTimeoutMs: 1000, sessionTimeoutMs: 4 * 60 * 60 * 1000,
+  maxQueuedRequests: 500, maxQueuedText: 4 * 1024 * 1024, maxSessionRequests: 1000,
+  maxSessionText: 50_000_000, translationConcurrency: 4,
+  translationTimeoutMs: 35_000, authTimeoutMs: 10_000, audioConnectTimeoutMs: 20_000,
+  finishTimeoutMs: 30_000, closeTimeoutMs: 1000, sessionTimeoutMs: 4 * 60 * 60 * 1000,
   maxBufferedBytes: 4 * 1024 * 1024, messagesPerSecond: 500, bytesPerSecond: 2 * 1024 * 1024,
 };
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -206,6 +206,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
             return;
           }
           const exportId = randomUUID();
+          console.log(`[Export] Métadonnées de session enregistrées (exportId: ${exportId})`);
           exportMetaMap.set(exportId, {
             session: data.session || {},
             segments: Array.isArray(data.segments) ? data.segments : [],
@@ -295,18 +296,19 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
 
         fileStream.on('finish', async () => {
           try {
+            console.log(`[Export] Réception flux binaire terminée (${(totalBytes / (1024 * 1024)).toFixed(2)} Mo), début du transcodage et de la synthèse en parallèle...`);
             const session = savedMeta?.session || parseHeaderJson(req.headers['x-clair-session'], {});
             const segments = (savedMeta?.segments && savedMeta.segments.length) ? savedMeta.segments : parseHeaderJson(req.headers['x-clair-segments'], []);
             const srtContent = savedMeta?.srtContent || parseHeaderText(req.headers['x-clair-srt'], '');
             const synthesisMode = savedMeta?.synthesisMode || req.headers['x-clair-synthesis-mode'] || 'meeting';
 
-            let synthesisResult = null;
-            if (config.geminiKey) {
+            const synthesisPromise = (async () => {
+              if (!config.geminiKey) return null;
               try {
                 const segmentsToSynthesize = (segments && segments.length) ? segments : [
                   { startMs: 0, endMs: session?.durationMs || 10000, speakerName: 'Session Clair', translatedText: 'Session Clair enregistrée.' }
                 ];
-                synthesisResult = await generateDetailedSynthesis({
+                return await generateDetailedSynthesis({
                   segments: segmentsToSynthesize,
                   session: session || {},
                   mode: synthesisMode,
@@ -314,9 +316,23 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
                   model: config.geminiModel,
                 });
               } catch (synthErr) {
-                console.warn('Erreur synthèse Gemini:', synthErr.message);
+                console.warn('[Export] Erreur synthèse Gemini:', synthErr.message);
+                return generateFallbackSynthesis({ segments, session: session || {}, mode: synthesisMode });
               }
-            }
+            })();
+
+            const videoPromise = (async () => {
+              if (totalBytes <= 0) return null;
+              const dateTag = session?.startedAt ? session.startedAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
+              return await processUnifiedVideo({
+                inputFilePath: tempInput,
+                srtContent,
+                outputDir: exportDir,
+                baseName: `reunion-${dateTag}`,
+              });
+            })();
+
+            const [synthesisResult, videoResult] = await Promise.all([synthesisPromise, videoPromise]);
 
             let htmlDownloadId = null;
             let mdDownloadId = null;
@@ -331,16 +347,8 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
               downloadFiles.set(mdDownloadId, { filePath: mdPath, mimeType: 'text/markdown; charset=utf-8', filename: 'synthese_reunion.md' });
             }
 
-            let videoResult = null;
             let videoDownloadId = null;
-            if (totalBytes > 0) {
-              const dateTag = session?.startedAt ? session.startedAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
-              videoResult = await processUnifiedVideo({
-                inputFilePath: tempInput,
-                srtContent,
-                outputDir: exportDir,
-                baseName: `reunion-${dateTag}`,
-              });
+            if (videoResult) {
               videoDownloadId = randomUUID();
               downloadFiles.set(videoDownloadId, {
                 filePath: videoResult.filePath,
@@ -349,6 +357,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
               });
             }
 
+            console.log(`[Export] Traitement terminé avec succès. Vidéo prête: ${Boolean(videoResult)}`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
               ok: true,
@@ -367,6 +376,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
               } : null,
             }));
           } catch (err) {
+            console.error('[Export] Erreur fatale export:', err.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ ok: false, error: err.message }));
           }
@@ -399,13 +409,13 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
             return;
           }
 
-          let synthesisResult = null;
-          if (config.geminiKey) {
+          const synthesisPromise = (async () => {
+            if (!config.geminiKey) return null;
             try {
               const segmentsToSynthesize = (body.segments && body.segments.length) ? body.segments : [
                 { startMs: 0, endMs: body.session?.durationMs || 10000, speakerName: 'Session de test', translatedText: 'Session de test Clair sans prise de parole détectée.' }
               ];
-              synthesisResult = await generateDetailedSynthesis({
+              return await generateDetailedSynthesis({
                 segments: segmentsToSynthesize,
                 session: body.session || {},
                 mode: body.synthesisMode || 'course',
@@ -413,9 +423,24 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
                 model: config.geminiModel,
               });
             } catch (synthErr) {
-              console.warn('Erreur synthèse Gemini:', synthErr.message);
+              console.warn('[Export] Erreur synthèse Gemini:', synthErr.message);
+              return generateFallbackSynthesis({ segments: body.segments || [], session: body.session || {}, mode: body.synthesisMode || 'course' });
             }
-          }
+          })();
+
+          const videoPromise = (async () => {
+            if (!body.videoBase64) return null;
+            const videoBuffer = Buffer.from(body.videoBase64, 'base64');
+            const dateTag = body.session?.startedAt ? body.session.startedAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
+            return await processUnifiedVideo({
+              videoBuffer,
+              srtContent: body.srtContent || '',
+              outputDir: exportDir,
+              baseName: `reunion-${dateTag}`,
+            });
+          })();
+
+          const [synthesisResult, videoResult] = await Promise.all([synthesisPromise, videoPromise]);
 
           let htmlDownloadId = null;
           let mdDownloadId = null;
@@ -430,17 +455,8 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
             downloadFiles.set(mdDownloadId, { filePath: mdPath, mimeType: 'text/markdown; charset=utf-8', filename: 'synthese_reunion.md' });
           }
 
-          let videoResult = null;
           let videoDownloadId = null;
-          if (body.videoBase64) {
-            const videoBuffer = Buffer.from(body.videoBase64, 'base64');
-            const dateTag = body.session?.startedAt ? body.session.startedAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
-            videoResult = await processUnifiedVideo({
-              videoBuffer,
-              srtContent: body.srtContent || '',
-              outputDir: exportDir,
-              baseName: `reunion-${dateTag}`,
-            });
+          if (videoResult) {
             videoDownloadId = randomUUID();
             downloadFiles.set(videoDownloadId, {
               filePath: videoResult.filePath,
@@ -491,12 +507,13 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
 
   function pump() {
     while (active < limits.translationConcurrency) {
-      const index = queue.findIndex((job) => !job.session.running);
+      const index = queue.findIndex((job) => (job.session.activeJobs || 0) < 2);
       if (index < 0) return;
       const job = queue.splice(index, 1)[0];
       const session = job.session;
       active++;
-      session.running = job;
+      session.activeJobs = (session.activeJobs || 0) + 1;
+      session.controllers?.add(job.controller);
       bounded(() => translator(job.segment.sourceText, { signal: job.controller.signal, context: session.recentHistory || [] }),
         limits.translationTimeoutMs, job.controller)
         .then((translatedText) => {
@@ -513,15 +530,19 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
         }).catch((err) => {
           console.warn(`[Gateway] Échec traduction (${job.segment.id}):`, err?.message || err);
           if (!session.closed) {
-            console.log(`[Gateway] Envoi fallback sourceText (${job.segment.id}): "${job.segment.sourceText}"`);
-            session.send({ type: 'segment', segment: { ...job.segment, translatedText: job.segment.sourceText, status: 'final' } });
+            const fallbackText = (typeof job.segment.sourceText === 'string' && job.segment.sourceText.trim())
+              ? job.segment.sourceText.trim()
+              : '[Traduction indisponible]';
+            console.log(`[Gateway] Envoi fallback (${job.segment.id}): "${fallbackText}"`);
+            session.send({ type: 'segment', segment: { ...job.segment, translatedText: fallbackText, status: 'incomplete' } });
           }
         }).finally(() => {
           active--;
           outstanding--;
           queuedText -= job.segment.sourceText.length;
           session.pending--;
-          session.running = null;
+          session.activeJobs = Math.max(0, (session.activeJobs || 0) - 1);
+          session.controllers?.delete(job.controller);
           session.checkFinish();
           pump();
         });
@@ -529,7 +550,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
   }
 
   wss.on('connection', (ws) => {
-    const session = { closed: false, finishing: false, pending: 0, running: null, incomplete: false, recentHistory: [] };
+    const session = { closed: false, finishing: false, pending: 0, activeJobs: 0, controllers: new Set(), incomplete: false, recentHistory: [] };
     sessions.add(session);
     let state = 'auth';
     let mode;
@@ -632,7 +653,12 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
       clearTimeout(finishTimer);
       providerController.abort();
       audio?.close();
-      session.running?.controller.abort();
+      if (session.controllers) {
+        for (const c of session.controllers) {
+          try { c.abort(); } catch {}
+        }
+        session.controllers.clear();
+      }
       for (let i = queue.length - 1; i >= 0; i--) {
         if (queue[i].session !== session) continue;
         queuedText -= queue[i].segment.sourceText.length;
@@ -769,7 +795,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
                 const cleanText = sourceText.trim();
                 if (!cleanText) return;
 
-                const danglingConnectorRegex = /\b(and|or|so|if|that|which|who|whom|whose|because|but|to|for|with|as|at|by|from|in|into|of|on|off|out|over|under|until|up|while|although|though|we|i|you|he|she|they|it|the|a|an|is|are|was|were|be|been|have|has|had|do|does|did|will|would|can|could|should|my|your|his|her|its|our|their|et|ou|donc|or|ni|car|mais|si|que|qui|quoi|dont|où|qu'|parce|puisque|comme|pour|avec|sans|sous|sur|dans|de|du|des|d'|en|au|aux|à|par|vers|chez|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|je|j'|tu|il|elle|on|nous|vous|ils|elles|ce|cet|cette|ces|le|la|les|un|une|est|suis|es|sommes|êtes|sont|été|ai|as|a|avons|avez|ont|nom)\s*[.,?!]*$/i;
+                const danglingConnectorRegex = /\b(and|or|so|if|that|which|because|but|to|for|with|as|at|by|from|in|into|of|on|off|out|over|under|until|up|while|although|though|we|i|he|she|they|the|a|an|et|ou|donc|ni|car|mais|si|que|qui|dont|où|qu'|parce|puisque|comme|pour|avec|sans|sous|sur|dans|de|du|des|d'|en|au|aux|à|par|vers|chez|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs|ce|cet|cette|ces|le|la|les|un|une)\s*[.,?!]*$/i;
 
                 if (pendingSentence && pendingSentence.speakerIndex !== speakerIndex) {
                   const currentPendingText = joinSentenceFragments(pendingSentence.fragments);
@@ -796,11 +822,11 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
                 const fullText = joinSentenceFragments(pendingSentence.fragments);
                 const wordCount = fullText.split(/\s+/).filter(Boolean).length;
 
-                const isDangling = danglingConnectorRegex.test(cleanText) || danglingConnectorRegex.test(fullText);
+                const isDangling = !/[?!]$/.test(cleanText) && (danglingConnectorRegex.test(cleanText) || danglingConnectorRegex.test(fullText));
 
-                const hasTerminalPunct = wordCount >= 5 && /[.?!]$/.test(cleanText) && !isDangling;
-                const hasClauseBreak = wordCount >= 12 && /[,;:]$/.test(cleanText) && !isDangling;
-                const isTooLong = wordCount >= 20 || fullText.length >= 135;
+                const hasTerminalPunct = wordCount >= 4 && /[.?!]$/.test(cleanText) && !isDangling;
+                const hasClauseBreak = wordCount >= 9 && /[,;:]$/.test(cleanText) && !isDangling;
+                const isTooLong = wordCount >= 20 || fullText.length >= 140;
 
                 if (hasTerminalPunct || hasClauseBreak || isTooLong) {
                   flushCurrentSentence();
@@ -809,7 +835,7 @@ export function createGateway({ env = process.env, translate, audioProvider, lim
                     session.send({ type: 'interim', text: fullText });
                   }
                   if (sentenceFlushTimer) clearTimeout(sentenceFlushTimer);
-                  const silenceDelay = isDangling ? 3200 : (wordCount < 4 ? 2800 : 1800);
+                  const silenceDelay = isDangling ? 1100 : (wordCount < 4 ? 900 : 700);
                   sentenceFlushTimer = setTimeout(() => {
                     flushCurrentSentence();
                   }, silenceDelay);

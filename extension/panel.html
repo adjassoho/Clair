@@ -1,98 +1,170 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Clair | Teams en francais</title><link rel="stylesheet" href="panel.css"></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clair | Teams en francais</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
 <body>
   <header>
-    <div class="wordmark">clair<span>.</span></div>
+    <div class="brand-group">
+      <div class="wordmark">clair<span>.</span></div>
+      <span class="edition" id="version-tag">PRO</span>
+    </div>
     <div class="header-right">
-      <button id="reload-extension" class="discrete-toggle-btn" type="button" title="Vider le cache et recharger l'extension">🔄 Recharger</button>
-      <button id="reset-session" class="discrete-toggle-btn" type="button" title="Réinitialiser pour une nouvelle session">Nouvelle session</button>
+      <div class="lang-switch" role="group" aria-label="Langue d'affichage / Display language">
+        <button id="lang-fr" class="lang-btn active" type="button" title="Afficher l'interface en français">FR</button>
+        <button id="lang-en" class="lang-btn" type="button" title="Display interface in English">EN</button>
+      </div>
       <button id="toggle-discrete" class="discrete-toggle-btn" type="button" title="Activer / désactiver le mode discret">Mode Discret</button>
-      <span class="edition" id="version-tag">V1.3</span>
+      <button id="reset-session" class="icon-btn" type="button" title="Nouvelle session" aria-label="Nouvelle session">
+        <span class="btn-icon">✨</span>
+        <span class="btn-label-desktop" data-i18n="newSession">Nouvelle session</span>
+      </button>
+      <button id="reload-extension" class="icon-btn" type="button" title="Vider le cache et recharger l'extension" aria-label="Recharger">
+        <span class="btn-icon">🔄</span>
+      </button>
     </div>
   </header>
   <main>
-    <section class="intro"><p class="eyebrow">COMPRENDRE. CONSERVER.</p><h1>Votre reunion,<br>en francais.</h1><p>Les paroles et les demonstrations, sur une meme ligne de temps.</p></section>
+    <section class="intro">
+      <p class="eyebrow" data-i18n="eyebrow">COMPRENDRE. CONSERVER.</p>
+      <h1 data-i18n="title">Votre reunion,<br>en francais.</h1>
+      <p class="intro-desc" data-i18n="subtitle">Les paroles et les demonstrations, sur une meme ligne de temps.</p>
+    </section>
+
     <div class="statusbar">
       <span id="status">Pret</span>
-      <div id="discrete-banner" class="discrete-banner" hidden><span class="pulse-dot">●</span> Enregistrement discret en cours...</div>
+      <div id="discrete-banner" class="discrete-banner" hidden>
+        <span class="pulse-dot">●</span>
+        <span data-i18n="discreteBanner">Enregistrement discret en cours...</span>
+      </div>
       <time id="duration">00:00</time>
       <span id="signal" title="Niveau audio">Audio : --</span>
     </div>
+
     <p id="error" role="alert" hidden></p>
+
     <form id="setup">
-      <label for="mode">Source de transcription</label>
+      <label for="mode" data-i18n="labelMode">Source de transcription</label>
       <select id="mode">
-        <option value="audio" selected>Audio direct haute fidélité (Recommandé)</option>
-        <option value="captions">Sous-titres natifs Teams (expérimental)</option>
+        <option value="audio" selected data-i18n="modeAudio">Audio direct haute fidélité (Recommandé)</option>
+        <option value="captions" data-i18n="modeCaptions">Sous-titres natifs Teams (expérimental)</option>
       </select>
-      <label class="toggle-option"><input id="enable-mic" type="checkbox" checked><span>Capturer aussi ma voix (Microphone local)</span></label>
-      <p class="hint" id="mode-help">Audio direct : transcription et traduction française instantanées en temps réel.</p>
-      <label for="synthesis-mode">Type de synthèse attendue</label>
+
+      <label class="toggle-option">
+        <input id="enable-mic" type="checkbox" checked>
+        <span data-i18n="labelMic">Capturer aussi ma voix (Microphone local)</span>
+      </label>
+
+      <p class="hint" id="mode-help" data-i18n="modeHelp">Audio direct : transcription et traduction française instantanées en temps réel.</p>
+
+      <label for="synthesis-mode" data-i18n="labelSynthesis">Type de synthèse attendue</label>
       <select id="synthesis-mode">
-        <option value="course">Fiche de cours approfondie (Concepts, Q&amp;R, Définitions, Devoirs)</option>
-        <option value="meeting">Compte-rendu exécutif de réunion (Décisions, Actions, Synthèse)</option>
+        <option value="course" data-i18n="synthCourse">Fiche de cours approfondie (Concepts, Q&amp;R, Définitions, Devoirs)</option>
+        <option value="meeting" data-i18n="synthMeeting">Compte-rendu exécutif de réunion (Décisions, Actions, Synthèse)</option>
       </select>
-      <div class="languages"><span>Anglais <small>LANGUE PARLEE</small></span><span aria-hidden="true">&rarr;</span><span>Francais <small>TRADUCTION</small></span></div>
-      <label for="token">Jeton du service local</label><input id="token" type="password" autocomplete="off" placeholder="GATEWAY_TOKEN" required minlength="16">
-      <p class="hint">Service : 127.0.0.1:8787. Jeton utilise en memoire uniquement.</p>
-      <label class="consent"><input id="consent" type="checkbox" required><span>J'ai informé les participants et dispose des autorisations nécessaires. Le flux audio et texte est traité de manière sécurisée et chiffrée par le service Clair. La vidéo reste locale.</span></label>
-      <button id="start" class="primary" type="submit">Demarrer la session <span>&rarr;</span></button>
+
+      <div class="languages">
+        <div class="lang-pill">
+          <span class="lang-name" data-i18n="langSource">Anglais</span>
+          <small data-i18n="langSourceSub">LANGUE PARLEE</small>
+        </div>
+        <div class="lang-arrow" aria-hidden="true">&rarr;</div>
+        <div class="lang-pill highlight">
+          <span class="lang-name" data-i18n="langTarget">Francais</span>
+          <small data-i18n="langTargetSub">TRADUCTION</small>
+        </div>
+      </div>
+
+      <label for="token" data-i18n="labelToken">Jeton du service local</label>
+      <input id="token" type="password" autocomplete="off" placeholder="GATEWAY_TOKEN" required minlength="16">
+      <p class="hint" data-i18n="hintToken">Service : 127.0.0.1:8787. Jeton utilise en memoire uniquement.</p>
+
+      <label class="consent">
+        <input id="consent" type="checkbox" required>
+        <span data-i18n="consent">J'ai informé les participants et dispose des autorisations nécessaires. Le flux audio et texte est traité de manière sécurisée et chiffrée par le service Clair. La vidéo reste locale.</span>
+      </label>
+
+      <button id="start" class="primary" type="submit">
+        <span class="btn-text" data-i18n="start">Demarrer la session</span>
+        <span class="btn-arrow" aria-hidden="true">&rarr;</span>
+      </button>
     </form>
+
     <section id="session-actions" hidden>
       <div class="session-active-card">
         <div class="session-active-header">
           <span class="live-pulse"></span>
           <div>
-            <h2>Séance en cours d'enregistrement</h2>
-            <p class="live-subtitle">Vidéo de la réunion et transcription en direct actives</p>
+            <h2 data-i18n="activeTitle">Séance en cours d'enregistrement</h2>
+            <p class="live-subtitle" data-i18n="activeSubtitle">Vidéo de la réunion et transcription en direct actives</p>
           </div>
         </div>
-        <button id="finish" class="primary prominent danger-btn" type="button">⏹️ Arrêter l'enregistrement et terminer la réunion</button>
+        <button id="finish" class="primary danger-btn" type="button" data-i18n="finish">⏹️ Arrêter l'enregistrement et terminer la réunion</button>
       </div>
+
       <details class="selective-crop-details">
-        <summary>Recadrer une zone spécifique (Optionnel)</summary>
-        <p class="hint">Par défaut, l'écran entier de la réunion est enregistré. Vous pouvez encadrer une zone précise si vous le désirez.</p>
-        <button id="select" type="button">Encadrer une zone</button>
+        <summary data-i18n="cropSummary">Recadrer une zone spécifique (Optionnel)</summary>
+        <p class="hint" data-i18n="cropHint">Par défaut, l'écran entier de la réunion est enregistré. Vous pouvez encadrer une zone précise si vous le désirez.</p>
+        <button id="select" type="button" data-i18n="select">Encadrer une zone</button>
         <img id="preview" alt="Apercu de la zone qui sera enregistree" hidden>
-        <div class="button-row"><button id="record" class="secondary" disabled>Enregistrer la zone</button><button id="stop-clip" disabled>Arrêter le recadrage</button></div>
+        <div class="button-row">
+          <button id="record" class="secondary" disabled data-i18n="record">Enregistrer la zone</button>
+          <button id="stop-clip" disabled data-i18n="stopClip">Arrêter le recadrage</button>
+        </div>
         <span id="clip-count" hidden>0 extrait</span>
       </details>
       <p class="hint" id="adapter">Adaptateur en attente.</p>
     </section>
+
     <section id="results" hidden>
-      <h2>Votre session est terminée</h2>
-      <p class="hint">Téléchargez votre enregistrement complet ou vos transcriptions :</p>
+      <h2 data-i18n="resultsTitle">Votre session est terminée</h2>
+      <p class="hint" data-i18n="resultsHint">Téléchargez votre enregistrement complet ou vos transcriptions :</p>
       <div class="export-card-grid">
         <div class="export-card">
           <div class="export-card-header">
             <span class="export-icon">🎬</span>
             <div>
-              <h3>Vidéo complète de la séance</h3>
-              <p class="export-desc">Vidéo intégrale de la réunion avec la transcription sous forme de sous-titres intégrés et synchronisés.</p>
+              <h3 data-i18n="cardVideoTitle">Vidéo complète de la séance</h3>
+              <p class="export-desc" data-i18n="cardVideoDesc">Vidéo intégrale de la réunion avec la transcription sous forme de sous-titres intégrés et synchronisés.</p>
             </div>
           </div>
-          <button id="download-full-video" class="primary prominent" type="button">Télécharger la vidéo complète (MP4)</button>
+          <button id="download-full-video" class="primary prominent" type="button" data-i18n="downloadVideo">Télécharger la vidéo complète (MP4)</button>
         </div>
 
         <div class="export-card">
           <div class="export-card-header">
             <span class="export-icon">📄</span>
             <div>
-              <h3>Transcriptions de la séance</h3>
-              <p class="export-desc">Texte complet et horodaté des échanges avec noms des intervenants et traduction française.</p>
+              <h3 data-i18n="cardTranscriptTitle">Transcriptions de la séance</h3>
+              <p class="export-desc" data-i18n="cardTranscriptDesc">Texte complet et horodaté des échanges avec noms des intervenants et traduction française.</p>
             </div>
           </div>
           <div class="export-btn-group">
-            <button id="download-transcript-txt" class="primary" type="button">Télécharger la transcription (.TXT)</button>
-            <button id="download-transcript-srt" class="secondary" type="button">Sous-titres (.SRT)</button>
+            <button id="download-transcript-txt" class="primary" type="button" data-i18n="downloadTxt">Télécharger la transcription (.TXT)</button>
+            <button id="download-transcript-srt" class="secondary" type="button" data-i18n="downloadSrt">Sous-titres (.SRT)</button>
           </div>
         </div>
       </div>
       <div id="export-status" class="export-status" hidden></div>
-      <button id="delete" class="quiet danger" type="button">Nouvelle session / Supprimer les données locales</button>
+      <button id="delete" class="quiet danger" type="button" data-i18n="delete">Nouvelle session / Supprimer les données locales</button>
     </section>
-    <section class="transcript-section"><div class="section-head"><h2>Le fil de la reunion</h2><button id="follow" class="text-button">Suivre le direct</button></div><p id="empty" class="empty">Les interventions apparaitront ici.<br>Aucun contenu de demonstration n'est injecte.</p><ol id="transcript" aria-label="Transcription francaise"></ol></section>
-  </main><footer>Installation pilote. Noms et synchronisation Teams a valider en reunion reelle. Microphone local non capture.</footer>
+
+    <section class="transcript-section">
+      <div class="section-head">
+        <div class="section-title-group">
+          <span class="stream-dot"></span>
+          <h2 data-i18n="transcriptTitle">Le fil de la reunion</h2>
+        </div>
+        <button id="follow" class="text-button" data-i18n="follow">Suivre le direct</button>
+      </div>
+      <p id="empty" class="empty" data-i18n="emptyTranscript">Les interventions apparaitront ici.<br>Aucun contenu de demonstration n'est injecte.</p>
+      <ol id="transcript" aria-label="Transcription"></ol>
+    </section>
+  </main>
+  <footer data-i18n="footer">Installation pilote. Noms et synchronisation Teams a valider en reunion reelle. Microphone local non capture.</footer>
   <script type="module" src="panel.js"></script>
-</body></html>
+</body>
+</html>

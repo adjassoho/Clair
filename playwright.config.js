@@ -13,7 +13,7 @@ export default defineConfig({
       use: {
         browserName: 'chromium',
         launchOptions: {
-          args: ['--allow-file-access-from-files'],
+          args: ['--allow-file-access-from-files', '--no-sandbox', '--disable-dev-shm-usage'],
         },
       },
     },

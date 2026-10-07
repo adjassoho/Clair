@@ -683,7 +683,7 @@
     badge.innerHTML = `
       <span class="pulse-dot"></span>
       <span>Clair</span>
-      <span class="drag-grip" title="Cliquez et glissez pour déplacer librement ce bandeau n'importe où sur l'écran">⠿ Déplacer</span>
+      <span class="drag-grip" id="clair-drag-grip" title="Cliquez et glissez pour déplacer librement ce bandeau n'importe où sur l'écran">⠿ Déplacer</span>
     `;
 
     const actions = document.createElement('div');
@@ -691,9 +691,10 @@
 
     // Bouton pour basculer instantanément entre Haut et Bas de l'écran (idéal en partage d'écran)
     const dockBtn = document.createElement('button');
+    dockBtn.id = 'clair-dock-btn';
     dockBtn.className = 'clair-btn';
-    dockBtn.textContent = '↕️ Haut/Bas';
-    dockBtn.title = 'Basculer en haut ou en bas de l’écran pour ne pas masquer les diapositives';
+    dockBtn.textContent = currentOverlayLang === 'en' ? '↕️ Dock' : '↕️ Haut/Bas';
+    dockBtn.title = currentOverlayLang === 'en' ? 'Dock to top or bottom to avoid covering slides' : 'Basculer en haut ou en bas de l’écran pour ne pas masquer les diapositives';
     dockBtn.onclick = () => {
       isOverlayDockedTop = !isOverlayDockedTop;
       subtitleHost.style.left = '50%';
@@ -712,7 +713,7 @@
     const compactBtn = document.createElement('button');
     compactBtn.className = 'clair-btn';
     compactBtn.textContent = '—';
-    compactBtn.title = 'Mode compact (réduire la hauteur pour libérer l’écran)';
+    compactBtn.title = currentOverlayLang === 'en' ? 'Compact mode (reduce height)' : 'Mode compact (réduire la hauteur pour libérer l’écran)';
     compactBtn.onclick = () => {
       isOverlayCompact = !isOverlayCompact;
       bar.classList.toggle('compact', isOverlayCompact);
@@ -721,9 +722,10 @@
     };
 
     const reopenBtn = document.createElement('button');
+    reopenBtn.id = 'clair-reopen-btn';
     reopenBtn.className = 'clair-btn';
-    reopenBtn.textContent = 'Panneau';
-    reopenBtn.title = 'Rouvrir la barre latérale Clair';
+    reopenBtn.textContent = currentOverlayLang === 'en' ? 'Panel' : 'Panneau';
+    reopenBtn.title = currentOverlayLang === 'en' ? 'Reopen Clair side panel' : 'Rouvrir la barre latérale Clair';
     reopenBtn.onclick = () => {
       notifyWorker('reopen-panel');
       setDiscreteOverlay(false);
@@ -732,7 +734,7 @@
     const closeBtn = document.createElement('button');
     closeBtn.className = 'clair-btn';
     closeBtn.textContent = '✕';
-    closeBtn.title = 'Masquer le bandeau';
+    closeBtn.title = currentOverlayLang === 'en' ? 'Hide overlay' : 'Masquer le bandeau';
     closeBtn.onclick = () => setDiscreteOverlay(false);
 
     actions.append(dockBtn, compactBtn, reopenBtn, closeBtn);
@@ -749,8 +751,11 @@
 
     subtitleText = document.createElement('div');
     subtitleText.className = 'clair-text';
-    const initialText = (lastSegmentReceived?.translatedText || lastSegmentReceived?.sourceText || '').trim();
-    subtitleText.textContent = initialText || 'Mode discret actif. La traduction apparaîtra ici en temps réel.';
+    const initialText = (lastSegmentReceived?.translatedText || '').trim();
+    const defaultPlaceholder = currentOverlayLang === 'en'
+      ? 'Discrete mode active. Translation will appear here in real time.'
+      : 'Mode discret actif. La traduction apparaîtra ici en temps réel.';
+    subtitleText.textContent = initialText || defaultPlaceholder;
 
     subtitleInterim = document.createElement('div');
     subtitleInterim.className = 'clair-interim';
@@ -763,7 +768,50 @@
     subtitleContainer = bar;
     restoreOverlayPosition(bar, compactBtn);
     makeDraggable(header, subtitleHost);
+    updateOverlayLanguage(currentOverlayLang);
   }
+
+  let currentOverlayLang = 'fr';
+  function updateOverlayLanguage(lang) {
+    if (lang !== 'fr' && lang !== 'en') lang = 'fr';
+    currentOverlayLang = lang;
+    if (!subtitleShadow) return;
+    const dock = subtitleShadow.getElementById('clair-dock-btn');
+    const reopen = subtitleShadow.getElementById('clair-reopen-btn');
+    const grip = subtitleShadow.getElementById('clair-drag-grip');
+    if (dock) {
+      dock.textContent = lang === 'en' ? '↕️ Dock' : '↕️ Haut/Bas';
+      dock.title = lang === 'en' ? 'Dock to top or bottom to avoid covering slides' : 'Basculer en haut ou en bas de l’écran pour ne pas masquer les diapositives';
+    }
+    if (reopen) {
+      reopen.textContent = lang === 'en' ? 'Panel' : 'Panneau';
+      reopen.title = lang === 'en' ? 'Reopen Clair side panel' : 'Rouvrir la barre latérale Clair';
+    }
+    if (grip) {
+      grip.textContent = lang === 'en' ? '⠿ Drag' : '⠿ Déplacer';
+      grip.title = lang === 'en' ? 'Click and drag to reposition anywhere on screen' : 'Cliquez et glissez pour déplacer librement ce bandeau n\'importe où sur l\'écran';
+    }
+    if (subtitleText && (!lastSegmentReceived || !lastSegmentReceived.translatedText)) {
+      subtitleText.textContent = lang === 'en'
+        ? 'Discrete mode active. Translation will appear here in real time.'
+        : 'Mode discret actif. La traduction apparaîtra ici en temps réel.';
+    }
+  }
+
+  try {
+    if (globalThis.chrome?.storage?.session) {
+      chrome.storage.session.get('uiLang').then(res => {
+        if (res?.uiLang) updateOverlayLanguage(res.uiLang);
+      }).catch(() => {});
+    }
+    if (globalThis.chrome?.storage?.onChanged) {
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'session' && changes.uiLang) {
+          updateOverlayLanguage(changes.uiLang.newValue);
+        }
+      });
+    }
+  } catch {}
 
   function makeDraggable(handle, element) {
     let startX = 0, startY = 0, initLeft = 0, initTop = 0;
@@ -803,7 +851,6 @@
   }
 
   function displaySubtitleSegment(segment) {
-    lastSegmentReceived = segment;
     if (!isDiscreteActive) {
       try {
         if (globalThis.chrome?.storage?.session) {
@@ -817,6 +864,18 @@
       } catch {}
       return;
     }
+
+    // En mode discret : ne JAMAIS afficher les segments provisoires ou non traduits (texte source anglais) !
+    if (segment.status === 'provisional' || !segment.translatedText || segment.translatedText === segment.sourceText) {
+      if (subtitleInterim) {
+        subtitleInterim.textContent = '● Traduction en cours...';
+        subtitleInterim.style.display = isOverlayCompact ? 'none' : 'block';
+      }
+      return;
+    }
+
+    lastSegmentReceived = segment;
+
     ensureSubtitleOverlay();
     subtitleContainer?.classList.remove('hidden');
 
@@ -827,7 +886,8 @@
       subtitleSpeaker.style.display = 'none';
     }
 
-    const text = (segment.translatedText || segment.sourceText || '').trim();
+    // N'afficher que la traduction française finale, jamais le texte anglais
+    const text = (segment.translatedText || '').trim();
     if (text && subtitleText) {
       subtitleText.textContent = text;
       subtitleText.style.opacity = '1';
@@ -863,13 +923,10 @@
 
     const clean = (text || '').trim();
     if (clean) {
-      if (subtitleText) {
-        subtitleText.textContent = clean;
-        subtitleText.style.opacity = '0.88';
-        subtitleText.style.fontStyle = 'italic';
-      }
+      // En mode discret : ne JAMAIS afficher la transcription brute en anglais dans subtitleText !
+      // Le dernier sous-titre français reste affiché, et on signale discrètement l'écoute
       if (subtitleInterim) {
-        subtitleInterim.textContent = '... (traduction en cours)';
+        subtitleInterim.textContent = '● Écoute en cours...';
         subtitleInterim.style.display = isOverlayCompact ? 'none' : 'block';
       }
     } else {

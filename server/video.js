@@ -77,22 +77,32 @@ export async function processUnifiedVideo({
         await fs.writeFile(tempSrt, srtContent, 'utf-8');
       }
 
-      const runFfmpeg = (args) => new Promise((resolve, reject) => {
+      const runFfmpeg = (args, timeoutMs = 75000) => new Promise((resolve, reject) => {
         const proc = spawn(ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
         let stderr = '';
+        let timer = setTimeout(() => {
+          try { proc.kill('SIGKILL'); } catch {}
+          reject(new Error('Délai dépassé lors de l\'encodage FFmpeg (timeout).'));
+        }, timeoutMs);
         proc.stderr.on('data', chunk => { stderr += chunk; });
         proc.on('close', code => {
+          clearTimeout(timer);
           if (code === 0) resolve();
           else reject(new Error(`FFmpeg a échoué avec le code ${code}: ${stderr.slice(-400)}`));
         });
-        proc.on('error', reject);
+        proc.on('error', (err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
       });
 
       let conversionDone = false;
+      const t0 = performance.now();
 
       // Tentative 1 : avec sous-titres incrustés
       if (tempSrt) {
         try {
+          console.log('[FFmpeg] Encodage MP4 accéléré avec sous-titres incrustés...');
           const srtEscaped = tempSrt.replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "\\'");
           const argsWithSubs = [
             '-y',
@@ -101,12 +111,13 @@ export async function processUnifiedVideo({
             '-avoid_negative_ts', 'make_zero',
             '-i', tempInput,
             '-vf', `subtitles='${srtEscaped}':force_style='FontSize=18,PrimaryColour=&H00FFFFFF,BackColour=&H80000000,BorderStyle=3,Outline=1,MarginV=25'`,
+            '-r', '25',
             '-c:v', 'libx264',
             '-pix_fmt', 'yuv420p',
-            '-fps_mode', 'cfr',
             '-max_muxing_queue_size', '2048',
-            '-preset', 'veryfast',
-            '-crf', '22',
+            '-preset', 'ultrafast',
+            '-crf', '23',
+            '-threads', '0',
             '-c:a', 'aac',
             '-b:a', '128k',
             '-movflags', '+faststart',
@@ -114,6 +125,7 @@ export async function processUnifiedVideo({
           ];
           await runFfmpeg(argsWithSubs);
           conversionDone = true;
+          console.log(`[FFmpeg] Encodage MP4 avec sous-titres terminé en ${Math.round(performance.now() - t0)}ms`);
         } catch (subErr) {
           console.warn('[FFmpeg] Incrustation des sous-titres impossible, repli sur MP4 direct sans sous-titres:', subErr.message);
         }
@@ -121,18 +133,20 @@ export async function processUnifiedVideo({
 
       // Tentative 2 : sans sous-titres si tempSrt n'était pas fourni ou si le filtre subtitles a échoué
       if (!conversionDone) {
+        console.log('[FFmpeg] Encodage MP4 accéléré direct...');
         const argsDirect = [
           '-y',
           '-err_detect', 'ignore_err',
           '-fflags', '+genpts+igndts',
           '-avoid_negative_ts', 'make_zero',
           '-i', tempInput,
+          '-r', '25',
           '-c:v', 'libx264',
           '-pix_fmt', 'yuv420p',
-          '-fps_mode', 'cfr',
           '-max_muxing_queue_size', '2048',
-          '-preset', 'veryfast',
+          '-preset', 'ultrafast',
           '-crf', '23',
+          '-threads', '0',
           '-c:a', 'aac',
           '-b:a', '128k',
           '-movflags', '+faststart',
@@ -140,6 +154,7 @@ export async function processUnifiedVideo({
         ];
         await runFfmpeg(argsDirect);
         conversionDone = true;
+        console.log(`[FFmpeg] Encodage MP4 direct terminé en ${Math.round(performance.now() - t0)}ms`);
       }
 
       if (conversionDone) {

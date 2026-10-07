@@ -678,14 +678,23 @@ async function finish() {
       if (gatewayReady && socket?.readyState === WebSocket.OPEN) {
         const completed = new Promise(resolve => { resolveFinished = resolve; });
         try { socket.send(JSON.stringify({ type: 'finish' })); } catch {}
-        await Promise.race([completed, sleep(2500)]);
+        await Promise.race([completed, sleep(30000)]);
         if (!gatewayFinished) await incident('Delai de finalisation linguistique depasse.', 'gateway');
       }
       await incoming.catch(() => {});
+      for (const seg of segments) {
+        if (seg.status === 'provisional') {
+          seg.status = 'incomplete';
+          if (!seg.translatedText || seg.translatedText === seg.sourceText) {
+            seg.translatedText = seg.sourceText || '[Traduction non finalisée]';
+          }
+          await put('segments', seg.id, seg);
+        }
+      }
       for (const pending of captionRequests.values()) {
         if (!segments.some(segment => segment.id === pending.id)) {
           const missing = { id: pending.id, startMs: pending.startMs, endMs: pending.endMs, speakerName: pending.speakerName,
-            translatedText: '[Traduction indisponible]', status: 'incomplete' };
+            translatedText: pending.sourceText || '[Traduction indisponible]', status: 'incomplete' };
           segments.push(missing); await put('segments', missing.id, missing);
         }
       }

@@ -100,6 +100,12 @@ test.describe('Interface du panneau latéral (Panel)', () => {
     await expect(page.locator('#consent')).toBeVisible();
     await expect(page.locator('label.consent')).toContainText('Clair');
 
+    // Vérifier la visibilité et le contraste du bouton démarrer au survol (hover)
+    const startBtn = page.locator('#start');
+    await startBtn.hover();
+    const btnColor = await startBtn.evaluate(el => window.getComputedStyle(el).color);
+    expect(btnColor).toBe('rgb(255, 255, 255)');
+
     // Changement de mode vers 'audio'
     await page.selectOption('#mode', 'audio');
     await expect(page.locator('#mode-help')).toContainText('Audio direct');
@@ -128,5 +134,40 @@ test.describe('Interface du panneau latéral (Panel)', () => {
     await expect(page.locator('#export-unified')).toHaveCount(0);
     await expect(page.locator('#export-synthesis-html')).toHaveCount(0);
     await expect(page.locator('#export-synthesis-md')).toHaveCount(0);
+  });
+
+  test('permet de basculer la langue d\'affichage entre Français et Anglais', async ({ page }) => {
+    const panelPath = pathToFileURL(process.cwd() + '/dist/extension/panel.html').href;
+    await page.goto(panelPath);
+
+    const btnFr = page.locator('#lang-fr');
+    const btnEn = page.locator('#lang-en');
+
+    // Vérifier l'état initial en français
+    await expect(btnFr).toHaveClass(/active/);
+    await expect(btnEn).not.toHaveClass(/active/);
+    await expect(page.locator('#status')).toHaveText('Pret');
+    await expect(page.locator('#toggle-discrete')).toHaveText('Mode Discret');
+    await expect(page.locator('#start .btn-text')).toHaveText('Demarrer la session');
+
+    // Basculer en Anglais
+    await btnEn.click();
+    await expect(btnEn).toHaveClass(/active/);
+    await expect(btnFr).not.toHaveClass(/active/);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('#status')).toHaveText('Ready');
+    await expect(page.locator('#toggle-discrete')).toHaveText('Discrete Mode');
+    await expect(page.locator('#start .btn-text')).toHaveText('Start session');
+    await expect(page.locator('#mode-help')).toContainText('Direct audio');
+
+    // Rebasculer en Français
+    await btnFr.click();
+    await expect(btnFr).toHaveClass(/active/);
+    await expect(btnEn).not.toHaveClass(/active/);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+    await expect(page.locator('#status')).toHaveText('Pret');
+    await expect(page.locator('#toggle-discrete')).toHaveText('Mode Discret');
+    await expect(page.locator('#start .btn-text')).toHaveText('Demarrer la session');
+    await expect(page.locator('#mode-help')).toContainText('Audio direct');
   });
 });

@@ -136,9 +136,12 @@ export async function generateDetailedSynthesis({ segments = [], session = {}, m
   const maxRetries = 3;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
     try {
       response = await fetch(url, {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -159,6 +162,8 @@ export async function generateDetailedSynthesis({ segments = [], session = {}, m
       if (attempt < maxRetries) {
         await new Promise(r => setTimeout(r, attempt * 1000));
       }
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

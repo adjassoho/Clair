@@ -1,34 +1,96 @@
 import WebSocket from 'ws';
 
-export function createGeminiTranslator({ apiKey, model = 'gemini-3.5-flash-lite', fetchImpl = fetch }) {
-  let activeModel = model;
-  const candidateModels = [
-    model,
-    'gemini-3.5-flash-lite',
-    'gemini-flash-lite-latest',
-    'gemini-3.1-flash-lite',
-    'gemini-3.8-flash',
-  ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
+const INSTANT_TRANSLATIONS = new Map([
+  ['yes', 'Oui.'],
+  ['yeah', 'Oui.'],
+  ['yep', 'Oui.'],
+  ['no', 'Non.'],
+  ['nope', 'Non.'],
+  ['okay', 'D’accord.'],
+  ['ok', 'D’accord.'],
+  ['okay okay', 'D’accord, d’accord.'],
+  ['thank you', 'Merci.'],
+  ['thanks', 'Merci.'],
+  ['thank you so much', 'Merci beaucoup.'],
+  ['hello', 'Bonjour.'],
+  ['hi', 'Bonjour.'],
+  ['good morning', 'Bonjour à tous.'],
+  ['sure', 'Bien sûr.'],
+  ['exactly', 'Exactement.'],
+  ['right', 'D’accord.'],
+  ['correct', 'Correct.'],
+  ['perfect', 'Parfait.'],
+  ['alright', 'Très bien.'],
+  ['understood', 'Compris.'],
+  ['i see', 'Je vois.'],
+  ['i follow', 'Je vous suis.'],
+  ['no problem', 'Pas de problème.'],
+  ['you understand', 'Vous comprenez.'],
+  ['can you hear me', 'Vous m’entendez ?'],
+  ['i hear you', 'Je vous entends.'],
+  ['i hear you as well', 'Je vous entends aussi.'],
+]);
+
+export function createGeminiTranslator({ apiKey, model = 'gemini-3-flash-preview', fetchImpl = fetch }) {
+  const modelPool = [
+    { name: model, level: (model.includes('3.6') || model.includes('3.8')) ? 'low' : 'minimal' },
+    { name: 'gemini-3-flash-preview', level: 'minimal' },
+    { name: 'gemini-3.5-flash', level: 'minimal' },
+    { name: 'gemini-3.6-flash', level: 'low' },
+  ].filter((m, idx, arr) => m.name && arr.findIndex(x => x.name === m.name) === idx);
+
+  let roundRobinIndex = 0;
+  const modelCooldowns = new Map();
 
   return async (sourceText, { signal, context = [] } = {}) => {
     const t0 = performance.now();
-    let lastError = null;
 
-    const modelsToTry = [activeModel, ...candidateModels.filter(m => m !== activeModel)];
+    if (fetchImpl === fetch) {
+      const normalized = (sourceText || '').trim().toLowerCase().replace(/[.?!,;:]/g, '');
+      if (INSTANT_TRANSLATIONS.has(normalized)) {
+        const instant = INSTANT_TRANSLATIONS.get(normalized);
+        console.log(`[Traducteur Instantané] "${sourceText}" -> "${instant}" (0ms, 0 quota)`);
+        return instant;
+      }
+    }
+
+    let lastError = null;
 
     let promptUserContent = sourceText;
     if (context && context.length > 0) {
       promptUserContent = `[Contexte de la discussion (phrases précédentes)] :\n${context.map(c => `- ${c}`).join('\n')}\n\n[Nouvelle phrase à traduire en français fluide et naturel] :\n${sourceText}`;
     }
 
-    for (const currentModel of modelsToTry) {
+    const startIndex = (roundRobinIndex++) % modelPool.length;
+    const candidatesToTry = [];
+    for (let i = 0; i < modelPool.length; i++) {
+      candidatesToTry.push(modelPool[(startIndex + i) % modelPool.length]);
+    }
+
+    for (const currentModel of candidatesToTry) {
       if (signal?.aborted) throw new Error('Translation aborted.');
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(currentModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      let response;
+      const cooldownUntil = modelCooldowns.get(currentModel.name) || 0;
+      if (Date.now() < cooldownUntil && candidatesToTry.length > 1) {
+        continue;
+      }
+
+      const candidateController = new AbortController();
+      const parentAbortHandler = () => {
+        candidateController.abort(signal?.reason || new Error('Translation aborted by caller.'));
+      };
+      if (signal) {
+        signal.addEventListener('abort', parentAbortHandler, { once: true });
+      }
+      const timeoutId = setTimeout(() => {
+        candidateController.abort(new Error(`Timeout modèle ${currentModel.name} (>7000ms)`));
+      }, 7000);
+      if (timeoutId.unref) timeoutId.unref();
+
       try {
-        response = await fetchImpl(url, {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(currentModel.name)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const response = await fetchImpl(url, {
           method: 'POST',
-          signal,
+          signal: candidateController.signal,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             systemInstruction: {
@@ -43,53 +105,96 @@ export function createGeminiTranslator({ apiKey, model = 'gemini-3.5-flash-lite'
               },
             ],
             generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 512,
+              temperature: 0.0,
+              maxOutputTokens: 384,
+              thinkingConfig: {
+                thinkingLevel: currentModel.level || 'minimal',
+              },
             },
           }),
         });
-      } catch (networkErr) {
-        lastError = networkErr;
-        continue;
-      }
 
-      if (!response.ok) {
-        const status = response.status;
-        await response.body?.cancel().catch(() => {});
-        lastError = new Error(`Gemini translation provider rejected the request (HTTP ${status}).`);
-        if (status === 429 || status === 404 || status === 503) {
-          console.warn(`[Gemini Traducteur] Modèle ${currentModel} indisponible (${status}), bascule automatique sur le modèle suivant...`);
+        if (!response.ok) {
+          const status = response.status;
+          await response.body?.cancel().catch(() => {});
+          lastError = new Error(`Gemini translation provider rejected the request (HTTP ${status}).`);
+          if (status === 429) {
+            console.warn(`[Gemini Traducteur] Quota 429 atteint pour ${currentModel.name}, cooldown 25s...`);
+            modelCooldowns.set(currentModel.name, Date.now() + 25000);
+            continue;
+          }
+          if (status === 404 || status === 503 || status === 400) {
+            console.warn(`[Gemini Traducteur] Modèle ${currentModel.name} indisponible (${status}), bascule automatique sur le modèle suivant...`);
+            modelCooldowns.set(currentModel.name, Date.now() + 30000);
+            continue;
+          }
           continue;
         }
-        break;
-      }
 
-      const reader = response.body.getReader();
-      const chunks = [];
-      let length = 0;
-      try {
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          length += value.byteLength;
-          if (length > 128 * 1024) throw new Error('Translation response too large.');
-          chunks.push(Buffer.from(value));
+        const reader = response.body.getReader();
+        const chunks = [];
+        let length = 0;
+        try {
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            length += value.byteLength;
+            if (length > 128 * 1024) throw new Error('Translation response too large.');
+            chunks.push(Buffer.from(value));
+          }
+        } finally {
+          await reader.cancel().catch(() => {});
+          reader.releaseLock();
         }
-      } finally {
-        await reader.cancel().catch(() => {});
-        reader.releaseLock();
-      }
-      const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      const candidate = result.candidates?.[0];
-      const text = candidate?.content?.parts?.[0]?.text;
-      if (!text || typeof text !== 'string' || !text.trim()) {
-        lastError = new Error('Gemini translation response was incomplete.');
+
+        const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        const candidate = result.candidates?.[0];
+        const text = candidate?.content?.parts?.[0]?.text;
+        if (!text || typeof text !== 'string' || !text.trim()) {
+          lastError = new Error('Gemini translation response was incomplete.');
+          continue;
+        }
+        const translated = text.trim();
+        console.log(`[Gemini Traducteur] (${currentModel.name}, ${Math.round(performance.now() - t0)}ms): "${sourceText.substring(0, 40)}..." -> "${translated.substring(0, 40)}..."`);
+        return translated;
+      } catch (err) {
+        if (signal?.aborted) throw err;
+        lastError = err;
+        console.warn(`[Gemini Traducteur] Modèle ${currentModel.name} non réactif ou erreur (${err.message}), bascule immédiate...`);
         continue;
+      } finally {
+        clearTimeout(timeoutId);
+        if (signal) {
+          signal.removeEventListener('abort', parentAbortHandler);
+        }
       }
-      const translated = text.trim();
-      activeModel = currentModel;
-      console.log(`[Gemini Traducteur] (${currentModel}, ${Math.round(performance.now() - t0)}ms): "${sourceText.substring(0, 40)}..." -> "${translated.substring(0, 40)}..."`);
-      return translated;
+    }
+
+    // Tentative d'urgence de secours en dernier recours avec gemini-3-flash-preview
+    if (!signal?.aborted) {
+      try {
+        console.log(`[Gemini Traducteur] Tentative de secours ultime pour: "${sourceText.substring(0, 30)}..."`);
+        const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const fbResp = await fetchImpl(fallbackUrl, {
+          method: 'POST',
+          signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: `Translate English to French subtitles:\n${sourceText}` }] }],
+            generationConfig: { temperature: 0.0, maxOutputTokens: 256, thinkingConfig: { thinkingLevel: 'minimal' } }
+          })
+        });
+        if (fbResp.ok) {
+          const fbData = await fbResp.json();
+          const fbText = fbData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (fbText) {
+            console.log(`[Gemini Traducteur] Traduction de secours réussie (${Math.round(performance.now() - t0)}ms): "${fbText.substring(0, 40)}..."`);
+            return fbText;
+          }
+        }
+      } catch (fbErr) {
+        console.warn(`[Gemini Traducteur] Échec secours:`, fbErr.message);
+      }
     }
 
     throw lastError || new Error('Gemini translation provider rejected the request.');
@@ -152,8 +257,8 @@ export function createDeepgramProvider({ apiKey, language = 'en', onResult, onIn
       sample_rate: '16000',
       channels: '1',
       interim_results: 'true',
-      utterance_end_ms: '2500',
-      endpointing: '1200',
+      utterance_end_ms: '1500',
+      endpointing: '450',
       punctuate: 'true',
       smart_format: 'true',
       diarize: 'true',
